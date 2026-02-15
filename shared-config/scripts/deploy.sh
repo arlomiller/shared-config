@@ -26,6 +26,13 @@ SKIP_PI_KEY_INSTALL=${SKIP_PI_KEY_INSTALL:-0}
 FORCE_KEY_INSTALL=${FORCE_KEY_INSTALL:-0}
 SETUP_NONINTERACTIVE=${SETUP_NONINTERACTIVE:-1}
 
+SCP_OPTS=""
+SSH_OPTS=""
+if [ -n "${PI_SSH_PORT}" ] && [ "${PI_SSH_PORT}" != "22" ]; then
+  SCP_OPTS="-P ${PI_SSH_PORT}"
+  SSH_OPTS="-p ${PI_SSH_PORT}"
+fi
+
 # Directory of this script (canonical shared-config scripts dir)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -55,15 +62,29 @@ fi
 
 log "INFO" "Preparing deployment to ${PI_HOST} (branch: ${BRANCH})"
 
-# Ensure known_hosts entry
-mkdir -p "${HOME}/.ssh" && chmod 700 "${HOME}/.ssh" || true
-if ! ssh-keygen -F "${PI_HOST}" >/dev/null 2>&1; then
-  ssh-keyscan -p "${PI_SSH_PORT}" -H "${PI_HOST}" 2>/dev/null >> "${HOME}/.ssh/known_hosts" || true
-  chmod 600 "${HOME}/.ssh/known_hosts" || true
-fi
+ensure_known_host() {
+  mkdir -p "${HOME}/.ssh" && chmod 700 "${HOME}/.ssh" || true
+  local known_hosts="${HOME}/.ssh/known_hosts"
+  local ssh_check=""
+
+  ssh_check=$(ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=5 ${SSH_OPTS} "${PI_USER}@${PI_HOST}" true 2>&1) && return 0 || true
+
+  if echo "${ssh_check}" | grep -q "REMOTE HOST IDENTIFICATION HAS CHANGED"; then
+    log "WARN" "Host key changed for ${PI_HOST}; removing old key"
+    ssh-keygen -R "${PI_HOST}" >/dev/null 2>&1 || true
+  fi
+
+  if ! ssh-keygen -F "${PI_HOST}" >/dev/null 2>&1; then
+    ssh-keyscan -p "${PI_SSH_PORT}" -H "${PI_HOST}" 2>/dev/null >> "${known_hosts}" || true
+  fi
+
+  chmod 600 "${known_hosts}" || true
+}
+
+ensure_known_host
 
 # Quick SSH auth check
-if ! ssh -o BatchMode=yes -o ConnectTimeout=5 "${PI_USER}@${PI_HOST}" true 2>/dev/null; then
+if ! ssh -o BatchMode=yes -o ConnectTimeout=5 ${SSH_OPTS} "${PI_USER}@${PI_HOST}" true 2>/dev/null; then
   log "WARN" "SSH key auth failed; ensure your public key is installed on ${PI_HOST} for ${PI_USER}"
 fi
 
@@ -106,12 +127,6 @@ if [ -z "${ORIGIN_URL}" ]; then
 fi
 
 REMOTE_TARGET="${PI_USER}@${PI_HOST}"
-SCP_OPTS=""
-SSH_OPTS=""
-if [ -n "${PI_SSH_PORT}" ] && [ "${PI_SSH_PORT}" != "22" ]; then
-  SCP_OPTS="-P ${PI_SSH_PORT}"
-  SSH_OPTS="-p ${PI_SSH_PORT}"
-fi
 
 log "INFO" "Ensuring remote directory ${REPO_DIR} exists on ${REMOTE_TARGET}"
 ssh ${SSH_OPTS} "${REMOTE_TARGET}" "mkdir -p '${REPO_DIR}'" || true
