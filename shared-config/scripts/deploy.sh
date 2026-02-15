@@ -13,7 +13,7 @@ log() {
 # This is adapted from Pi-Baseline/deploy.sh to provide a canonical deploy
 # implementation usable by multiple repos (Pi-Baseline, Wallboard, etc.).
 
-PI_CONFIGS_DIR=${PI_CONFIGS_DIR:-/c/Repos/PiConfigs}
+PI_CONFIGS_DIR=${PI_CONFIGS_DIR:-/c/Repos/Pi-Configs}
 PI_HOST=${PI_HOST:-pi-kitchen}
 PI_USER=${PI_USER:-piadmin}
 REPO_DIR=${REPO_DIR:-/home/${PI_USER}/$(basename "$(pwd)")}

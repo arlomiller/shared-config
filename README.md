@@ -1,10 +1,10 @@
-# PiConfigs shared setup
+# Pi-Configs shared setup
 
 This folder contains shared configuration and deployment tools for managing multiple Raspberry Pis across workspaces (Pi-Baseline, Wallboards, etc.).
 
 ## Repository Structure
 
-PiConfigs is added to each workspace as a **git subtree**, ensuring all repos use identical shared configuration without manual syncing.
+Pi-Configs is added to each workspace as a **git subtree**, ensuring all repos use identical shared configuration without manual syncing.
 
 ### Contents
 
@@ -18,12 +18,12 @@ PiConfigs is added to each workspace as a **git subtree**, ensuring all repos us
 
 **PowerShell:**
 ```powershell
-. .\PiConfigs\select-pi.ps1
+. .\Pi-Configs\select-pi.ps1
 ```
 
 **Git Bash:**
 ```bash
-source ./PiConfigs/select-pi.sh
+source ./Pi-Configs/select-pi.sh
 ```
 
 This displays a numbered menu of Pis from `pi-list.json` and sets these environment variables for your current session:
@@ -74,17 +74,17 @@ Edit [pi-list.json](pi-list.json) to add, remove, or modify Pis:
 - `user`: SSH username
 - `repo_dir`: Remote path to the repository (set to `null` to auto-detect as `/home/<user>/<repo-name>`)
 
-## Adding PiConfigs to a New Repository
+## Adding Pi-Configs to a New Repository
 
-See [SUBTREE_SETUP.md](SUBTREE_SETUP.md) for instructions on adding PiConfigs as a git subtree to new workspaces.
+See [SUBTREE_SETUP.md](SUBTREE_SETUP.md) for instructions on adding Pi-Configs as a git subtree to new workspaces.
 
-## Updating PiConfigs in Existing Repositories
+## Updating Pi-Configs in Existing Repositories
 
-After making changes to PiConfigs (editing pi-list.json, shared-config, etc.), update all repos:
+After making changes to Pi-Configs (editing pi-list.json, shared-config, etc.), update all repos:
 
 **In each workspace (Pi-Baseline, Wallboards, etc.):**
 ```bash
-git subtree pull --prefix=PiConfigs git@github.com:arlomiller/PiConfigs.git main --squash
+git subtree pull --prefix=Pi-Configs git@github.com:arlomiller/Pi-Configs.git main --squash
 ```
 
-This merges the latest PiConfigs changes into your workspace.
+This merges the latest Pi-Configs changes into your workspace.

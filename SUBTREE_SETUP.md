@@ -1,6 +1,6 @@
-# Adding PiConfigs to a Repository
+# Adding Pi-Configs to a Repository
 
-This guide explains how to add PiConfigs as a git subtree to a new repository (like Wallboards).
+This guide explains how to add Pi-Configs as a git subtree to a new repository (like Wallboards).
 
 ## Prerequisites
 
@@ -10,19 +10,19 @@ This guide explains how to add PiConfigs as a git subtree to a new repository (l
 
 ## Steps
 
-### 1. Add PiConfigs as a subtree
+### 1. Add Pi-Configs as a subtree
 
 From the root of your target repository:
 
 ```bash
-git subtree add --prefix=PiConfigs git@github.com:arlomiller/PiConfigs.git main --squash
+git subtree add --prefix=Pi-Configs git@github.com:arlomiller/Pi-Configs.git main --squash
 ```
 
-This creates a `PiConfigs/` folder in your repo containing all PiConfigs content (pi-list.json, select-pi scripts, shared-config).
+This creates a `Pi-Configs/` folder in your repo containing all Pi-Configs content (pi-list.json, select-pi scripts, shared-config).
 
 ### 2. Update the deploy.sh wrapper
 
-Edit your repo's `deploy.sh` to reference the shared deploy script from PiConfigs:
+Edit your repo's `deploy.sh` to reference the shared deploy script from Pi-Configs:
 
 ```bash
 #!/usr/bin/env bash
@@ -30,11 +30,11 @@ Edit your repo's `deploy.sh` to reference the shared deploy script from PiConfig
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SHARED_DEPLOY="${SCRIPT_DIR}/PiConfigs/shared-config/scripts/deploy.sh"
+SHARED_DEPLOY="${SCRIPT_DIR}/Pi-Configs/shared-config/scripts/deploy.sh"
 
 if [ ! -f "$SHARED_DEPLOY" ]; then
   echo "Error: Shared deploy script not found at $SHARED_DEPLOY"
-  echo "Run: git subtree pull --prefix=PiConfigs git@github.com:arlomiller/PiConfigs.git main --squash"
+  echo "Run: git subtree pull --prefix=Pi-Configs git@github.com:arlomiller/Pi-Configs.git main --squash"
   exit 1
 fi
 
@@ -52,7 +52,7 @@ exec "$SHARED_DEPLOY" "$@"
 $ErrorActionPreference = "Stop"
 
 # Dot-source the Pi selector to set environment variables
-. .\PiConfigs\select-pi.ps1
+. .\Pi-Configs\select-pi.ps1
 
 # Verify variables were set
 if (-not $env:PI_HOST -or -not $env:PI_USER -or -not $env:REPO_DIR) {
@@ -76,7 +76,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source the Pi selector to set environment variables
-source "${SCRIPT_DIR}/PiConfigs/select-pi.sh"
+source "${SCRIPT_DIR}/Pi-Configs/select-pi.sh"
 
 # Verify variables were set
 if [ -z "${PI_HOST:-}" ] || [ -z "${PI_USER:-}" ] || [ -z "${REPO_DIR:-}" ]; then
@@ -122,12 +122,12 @@ Update your repo's README.md to document the new deployment workflow:
 
 **PowerShell:**
 ```powershell
-. .\PiConfigs\select-pi.ps1
+. .\Pi-Configs\select-pi.ps1
 ```
 
 **Git Bash:**
 ```bash
-source ./PiConfigs/select-pi.sh
+source ./Pi-Configs/select-pi.sh
 ```
 ```
 
@@ -135,16 +135,16 @@ source ./PiConfigs/select-pi.sh
 
 ```bash
 git add .
-git commit -m "Add PiConfigs subtree and deploy-select wrappers"
+git commit -m "Add Pi-Configs subtree and deploy-select wrappers"
 git push
 ```
 
-## Updating PiConfigs in the Future
+## Updating Pi-Configs in the Future
 
-When PiConfigs is updated (new Pis added to pi-list.json, deploy scripts changed, etc.), pull the updates:
+When Pi-Configs is updated (new Pis added to pi-list.json, deploy scripts changed, etc.), pull the updates:
 
 ```bash
-git subtree pull --prefix=PiConfigs git@github.com:arlomiller/PiConfigs.git main --squash
+git subtree pull --prefix=Pi-Configs git@github.com:arlomiller/Pi-Configs.git main --squash
 git push
 ```
 
@@ -152,9 +152,9 @@ git push
 
 ### "Shared deploy script not found"
 
-Run the subtree pull command to sync PiConfigs:
+Run the subtree pull command to sync Pi-Configs:
 ```bash
-git subtree pull --prefix=PiConfigs git@github.com:arlomiller/PiConfigs.git main --squash
+git subtree pull --prefix=Pi-Configs git@github.com:arlomiller/Pi-Configs.git main --squash
 ```
 
 ### "jq is not installed" (Git Bash only)
@@ -167,7 +167,7 @@ Install jq:
 ### Environment variables not persisting
 
 Make sure to **dot-source** the selector script:
-- PowerShell: `. .\PiConfigs\select-pi.ps1` (note the leading dot and space)
-- Bash: `source ./PiConfigs/select-pi.sh`
+- PowerShell: `. .\Pi-Configs\select-pi.ps1` (note the leading dot and space)
+- Bash: `source ./Pi-Configs/select-pi.sh`
 
 Running without dot-sourcing/source will not persist the variables to your current session.

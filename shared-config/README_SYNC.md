@@ -4,7 +4,7 @@ This repo contains canonical `.vscode` settings and tasks shared across local pr
 
 Usage
 - Submodule: added to each repo at `shared-config/`.
-- Sync locally: run `sync-settings.ps1 <target-repo>` (Windows) or `sync-settings.sh <target-repo>` (Unix) from `C:/Repos/PiConfigs`.
+- Sync locally: run `sync-settings.ps1 <target-repo>` (Windows) or `sync-settings.sh <target-repo>` (Unix) from `C:/Repos/Pi-Configs`.
 
 Auto-sync on push
 - Each repo can include the provided GitHub Action (`.github/workflows/sync-shared-config.yml`) to copy `.vscode` from this submodule into the repo on push and commit changes automatically.
