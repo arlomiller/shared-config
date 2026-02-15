@@ -103,55 +103,6 @@ log "INFO" "Backup complete. Backup folder: ${BKDIR}"
 
 log "INFO" "Updating repository and running setup if available..."
 
-# If .git doesn't exist, this is initial setup - use init+fetch approach (idempotent)
-# Never use `git clone .` in an existing directory - it always fails
-if [ ! -d .git ] && [ -n "${REPO_URL}" ]; then
-  log "INFO" "No .git directory found; initializing repository from ${REPO_URL}"
-  
-  # Always use git init + remote + fetch + checkout when .git doesn't exist
-  # This approach works whether directory is empty or not (idempotent)
-  
-  # git init is idempotent - safe to run multiple times
-  git init 2>&1 || log "WARN" "git init warning (may already be initialized)"
-  
-  # Add remote only if it doesn't exist (idempotent check)
-  if ! git remote get-url origin >/dev/null 2>&1; then
-    if ! git remote add origin "${REPO_URL}" 2>&1; then
-      log "ERROR" "Failed to add git remote"
-      log "INFO" "To rollback, run: ${BKDIR}/restore.sh"
-      exit 1
-    fi
-  else
-    log "INFO" "Remote origin already configured"
-  fi
-  
-  # Ensure GitHub host key is in known_hosts before fetch
-  ensure_git_host_key "${REPO_URL}"
-  
-  # Use fetch_with_prompt which handles missing SSH keys
-  if ! fetch_with_prompt; then
-    log "ERROR" "Failed to fetch from remote"
-    log "INFO" "To rollback, run: ${BKDIR}/restore.sh"
-    exit 1
-  fi
-  
-  # Checkout/reset branch (idempotent with -B flag)
-  CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || true)
-  if [ "$CURRENT_BRANCH" != "${BRANCH}" ]; then
-    # -B creates or resets the branch (idempotent)
-    if ! git checkout -B "${BRANCH}" "origin/${BRANCH}" 2>&1; then
-      log "ERROR" "Failed to checkout branch ${BRANCH}"
-      log "INFO" "To rollback, run: ${BKDIR}/restore.sh"
-      exit 1
-    fi
-  else
-    log "INFO" "Already on branch ${BRANCH}, resetting to origin"
-    git reset --hard "origin/${BRANCH}" 2>&1 || log "WARN" "Could not reset to origin/${BRANCH}"
-  fi
-  
-  log "INFO" "Initial repository setup complete"
-fi
-
 KEY_MARKER="${HOME}/.ssh/.pi-baseline-deploy-key-registered"
 
 print_deploy_key() {
@@ -174,7 +125,7 @@ prompt_for_deploy_key() {
     mkdir -p "${HOME}/.ssh" && chmod 700 "${HOME}/.ssh"
     ssh-keygen -t ed25519 -f "${HOME}/.ssh/id_ed25519" -N "" -C "$(hostname)"
   fi
-  
+
   if ! print_deploy_key; then
     return 1
   fi
@@ -233,6 +184,55 @@ fetch_with_prompt() {
   log "WARN" "Git fetch failed: ${output%%$'\n'*}"
   return 1
 }
+
+# If .git doesn't exist, this is initial setup - use init+fetch approach (idempotent)
+# Never use `git clone .` in an existing directory - it always fails
+if [ ! -d .git ] && [ -n "${REPO_URL}" ]; then
+  log "INFO" "No .git directory found; initializing repository from ${REPO_URL}"
+  
+  # Always use git init + remote + fetch + checkout when .git doesn't exist
+  # This approach works whether directory is empty or not (idempotent)
+  
+  # git init is idempotent - safe to run multiple times
+  git init 2>&1 || log "WARN" "git init warning (may already be initialized)"
+  
+  # Add remote only if it doesn't exist (idempotent check)
+  if ! git remote get-url origin >/dev/null 2>&1; then
+    if ! git remote add origin "${REPO_URL}" 2>&1; then
+      log "ERROR" "Failed to add git remote"
+      log "INFO" "To rollback, run: ${BKDIR}/restore.sh"
+      exit 1
+    fi
+  else
+    log "INFO" "Remote origin already configured"
+  fi
+  
+  # Ensure GitHub host key is in known_hosts before fetch
+  ensure_git_host_key "${REPO_URL}"
+  
+  # Use fetch_with_prompt which handles missing SSH keys
+  if ! fetch_with_prompt; then
+    log "ERROR" "Failed to fetch from remote"
+    log "INFO" "To rollback, run: ${BKDIR}/restore.sh"
+    exit 1
+  fi
+  
+  # Checkout/reset branch (idempotent with -B flag)
+  CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || true)
+  if [ "$CURRENT_BRANCH" != "${BRANCH}" ]; then
+    # -B creates or resets the branch (idempotent)
+    if ! git checkout -B "${BRANCH}" "origin/${BRANCH}" 2>&1; then
+      log "ERROR" "Failed to checkout branch ${BRANCH}"
+      log "INFO" "To rollback, run: ${BKDIR}/restore.sh"
+      exit 1
+    fi
+  else
+    log "INFO" "Already on branch ${BRANCH}, resetting to origin"
+    git reset --hard "origin/${BRANCH}" 2>&1 || log "WARN" "Could not reset to origin/${BRANCH}"
+  fi
+  
+  log "INFO" "Initial repository setup complete"
+fi
 
 # If the repo exists, ensure it's clean or handle changes before pulling.
 if command -v git >/dev/null 2>&1 && [ -d .git ]; then
