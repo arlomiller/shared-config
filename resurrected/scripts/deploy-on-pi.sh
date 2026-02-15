@@ -124,6 +124,7 @@ prompt_for_deploy_key() {
     log "INFO" "Generating SSH key for GitHub authentication"
     mkdir -p "${HOME}/.ssh" && chmod 700 "${HOME}/.ssh"
     ssh-keygen -t ed25519 -f "${HOME}/.ssh/id_ed25519" -N "" -C "$(hostname)"
+    chmod 600 "${HOME}/.ssh/id_ed25519"
   fi
 
   if ! print_deploy_key; then
