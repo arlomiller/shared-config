@@ -1,0 +1,73 @@
+name: Infra sync
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  infra-sync:
+    name: Sync canonical files to target repos (open PRs)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout shared-config
+        uses: actions/checkout@v4
+
+      - name: Prepare branch
+        run: |
+          set -euo pipefail
+          TS=$(date -u +"%Y%m%dT%H%M%SZ")
+          echo "BRANCH=infra-sync/${TS}" >> $GITHUB_ENV
+
+      - name: Sync to target repos and open PRs
+        env:
+          PAT: ${{ secrets.INFRA_SYNC_PAT }}
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          OWNER=arlomiller
+          # Update this list to add or remove target repositories
+          TARGETS=("Pi-Baseline" "Wallboard")
+          FILES=(.gitattributes .gitignore .pre-commit-config.yaml sync-shared-files.sh README_SYNC.md .vscode)
+
+          for repo in "${TARGETS[@]}"; do
+            echo "--- Processing ${repo} ---"
+            TMPDIR=$(mktemp -d)
+            # Clone using PAT; don't print PAT
+            git clone "https://${PAT}@github.com/${OWNER}/${repo}.git" "${TMPDIR}"
+            pushd "${TMPDIR}" >/dev/null
+            BRANCH_NAME=${BRANCH}
+            git checkout -b "${BRANCH_NAME}"
+            CHANGED=0
+            for f in "${FILES[@]}"; do
+              SRC="${GITHUB_WORKSPACE}/${f}"
+              if [ -e "${SRC}" ]; then
+                echo "Copying ${f} to ${repo}..."
+                rm -rf "${f}"
+                mkdir -p "$(dirname "${f}")" 2>/dev/null || true
+                if [ -d "${SRC}" ]; then
+                  cp -a "${SRC}" "${f}"
+                else
+                  cp "${SRC}" "${f}"
+                fi
+                git add "${f}" || true
+                CHANGED=1
+              fi
+            done
+
+            if [ "${CHANGED}" -eq 1 ]; then
+              git commit -m "infra-sync: sync canonical files from shared-config @ ${GITHUB_SHA}" || true
+              # Push branch
+              git push --set-upstream origin "${BRANCH_NAME}"
+              # Create PR via API (base is 'main')
+              PR_TITLE="infra-sync: sync canonical files from shared-config"
+              PR_BODY="Automated sync from shared-config (${GITHUB_SHA}). Please review."
+              curl -s -X POST -H "Authorization: token ${PAT}" -H "Accept: application/vnd.github.v3+json" \
+                "https://api.github.com/repos/${OWNER}/${repo}/pulls" \
+                -d "{\"title\": \"${PR_TITLE}\", \"head\": \"${BRANCH_NAME}\", \"base\": \"main\", \"body\": \"${PR_BODY}\"}" || true
+            else
+              echo "No changes to sync for ${repo}."
+            fi
+
+            popd >/dev/null
+            rm -rf "${TMPDIR}"
+          done

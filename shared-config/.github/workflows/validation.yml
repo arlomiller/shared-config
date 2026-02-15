@@ -1,0 +1,91 @@
+name: Shared validation workflow
+
+on:
+  workflow_call: {}
+
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Run parity checks
+        run: |
+          set -euo pipefail
+          echo "Running deploy wrapper parity check..."
+          if [ -f deploy.sh ]; then
+            if ! grep -q "shared-config/scripts/deploy.sh" deploy.sh; then
+              echo "ERROR: deploy.sh must exec shared-config/scripts/deploy.sh" >&2
+              exit 1
+            fi
+          fi
+
+          echo "Checking for repo-local installer..."
+          if [ -f scripts/deployment/deploy-on-pi.sh ] || [ -f scripts/deploy-on-pi.sh ]; then
+            echo "ERROR: repo-local deploy-on-pi.sh found; use shared-config canonical installer" >&2
+            exit 1
+          fi
+
+          echo "Checking shared-file parity..."
+          for f in .gitattributes .gitignore .pre-commit-config.yaml; do
+            if [ -f "shared-config/${f}" ]; then
+              if ! diff -u "shared-config/${f}" "${f}" >/dev/null 2>&1; then
+                echo "ERROR: ${f} differs from shared-config/${f}" >&2
+                echo "Unified diff:" >&2
+                diff -u "shared-config/${f}" "${f}" || true
+                exit 1
+              fi
+            else
+              echo "WARNING: shared-config/${f} missing" >&2
+            fi
+          done
+
+          # Check .vscode directory parity
+          if [ -d "shared-config/.vscode" ]; then
+            if [ ! -d ".vscode" ]; then
+              echo "ERROR: .vscode is missing; must be synced from shared-config/.vscode" >&2
+              exit 1
+            fi
+            echo "Checking .vscode parity..."
+            if ! diff -ru "shared-config/.vscode" ".vscode" >/dev/null 2>&1; then
+              echo "ERROR: .vscode differs from shared-config/.vscode" >&2
+              echo "Unified diff for .vscode:" >&2
+              diff -ru "shared-config/.vscode" ".vscode" || true
+              exit 1
+            fi
+          else
+            echo "WARNING: shared-config/.vscode missing" >&2
+          fi
+
+          # Check sync script parity
+          if [ -f "shared-config/sync-shared-files.sh" ]; then
+            if [ ! -f "sync-shared-files.sh" ]; then
+              echo "ERROR: sync-shared-files.sh missing; run sync to pull canonical script" >&2
+              exit 1
+            fi
+            if ! diff -u "shared-config/sync-shared-files.sh" "sync-shared-files.sh" >/dev/null 2>&1; then
+              echo "ERROR: sync-shared-files.sh differs from shared-config/sync-shared-files.sh" >&2
+              diff -u "shared-config/sync-shared-files.sh" "sync-shared-files.sh" || true
+              exit 1
+            fi
+          fi
+
+          # Check workstation setup script parity
+          for p in setup-windows-workstation.ps1 setup-dev.ps1; do
+            if [ -f "shared-config/${p}" ]; then
+              if [ ! -f "${p}" ]; then
+                echo "ERROR: ${p} missing; expected from shared-config/${p}" >&2
+                exit 1
+              fi
+              if ! diff -u "shared-config/${p}" "${p}" >/dev/null 2>&1; then
+                echo "ERROR: ${p} differs from shared-config/${p}" >&2
+                diff -u "shared-config/${p}" "${p}" || true
+                exit 1
+              fi
+            fi
+          done
+
+          echo "Validation passed."

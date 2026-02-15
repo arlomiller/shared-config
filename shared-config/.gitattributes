@@ -1,0 +1,26 @@
+# Ensure shell scripts use LF on checkout (important for POSIX systems)
+*.sh text eol=lf
+*.bash text eol=lf
+#!/bin/sh text eol=lf
+
+# Ensure systemd unit and timer files use LF
+deploy/pi/systemd/*.service text eol=lf
+deploy/pi/systemd/*.timer text eol=lf
+
+# Common text files
+*.md text
+*.txt text
+*.yml text
+*.yaml text
+
+# Treat other files as binary by default
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Ensure executable bit is preserved when possible for shell scripts (core.autocrlf sensitive)
+# Note: executable bits are stored in the git index on POSIX systems; ensure commits modifying modes
+# are performed from a POSIX environment or CI runner.
