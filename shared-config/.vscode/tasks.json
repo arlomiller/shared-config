@@ -1,0 +1,52 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Open Copilot Instructions (Windows)",
+      "type": "shell",
+      "command": "powershell -Command Get-Content .github\\copilot-instructions.md",
+      "presentation": { "echo": true, "reveal": "always", "panel": "shared" },
+      "problemMatcher": []
+    },
+      {
+        "label": "Sync shared .vscode",
+        "type": "shell",
+        "command": "bash -lc \"'$(pwd)/../sync-shared-files.sh' '\"$PWD\"'\"",
+        "presentation": { "echo": true, "reveal": "always", "panel": "shared" },
+        "problemMatcher": []
+      },
+    {
+      "label": "Open Copilot Instructions (Unix)",
+      "type": "shell",
+      "command": "cat .github/copilot-instructions.md",
+      "presentation": { "echo": true, "reveal": "always", "panel": "shared" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Deploy (PowerShell)",
+      "type": "shell",
+      "command": "powershell -File .\\deploy-to-pi.ps1",
+      "options": {
+        "shell": {
+          "executable": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+          "args": ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File"]
+        }
+      },
+      "presentation": { "echo": true, "reveal": "always", "panel": "shared" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Deploy (Git Bash)",
+      "type": "shell",
+      "command": "bash ./deploy.sh",
+      "options": {
+        "shell": {
+          "executable": "C:\\Program Files\\Git\\bin\\bash.exe",
+          "args": ["--login", "-i"]
+        }
+      },
+      "presentation": { "echo": true, "reveal": "always", "panel": "shared" },
+      "problemMatcher": []
+    }
+  ]
+}

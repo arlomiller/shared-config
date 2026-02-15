@@ -1,0 +1,28 @@
+{
+  "terminal.integrated.profiles.windows": {
+    "Git Bash": {
+      "path": "C:\\Program Files\\Git\\bin\\bash.exe",
+      "args": ["--login", "-i"]
+    }
+  },
+  "terminal.integrated.defaultProfile.windows": "Git Bash",
+  "chat.tools.terminal.autoApprove": {
+    "ssh": true,
+    "git add": true,
+    "git commit": true
+  }
+  ,
+  "autoOpenWorkspace.enableAutoOpenIfSingleWorkspace": true,
+  "autoOpenWorkspace.enableAutoOpenAlwaysFirst": false,
+
+  "startupScripts.commands": [
+    {
+      "label": "Sync shared .vscode (Windows)",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"${env:PI_CONFIGS_DIR}\\sync-settings.ps1\" \"${workspaceFolder}\""
+    },
+    {
+      "label": "Sync shared .vscode (Unix)",
+      "command": "${env:PI_CONFIGS_DIR}/sync-settings.sh \"${workspaceFolder}\""
+    }
+  ]
+}
