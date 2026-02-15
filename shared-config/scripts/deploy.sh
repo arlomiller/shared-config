@@ -28,6 +28,9 @@ SETUP_NONINTERACTIVE=${SETUP_NONINTERACTIVE:-1}
 
 SCP_OPTS=""
 SSH_OPTS=""
+SSH_ID_OPTS=""
+SSH_BASE_OPTS=""
+SCP_BASE_OPTS=""
 SSH_MUX_DIR="${HOME}/.ssh"
 SSH_MUX_PATH="${SSH_MUX_DIR}/cm-%r@%h:%p"
 MUX_OPTS="-o ControlMaster=auto -o ControlPersist=15m -o ControlPath=${SSH_MUX_PATH}"
@@ -35,6 +38,13 @@ if [ -n "${PI_SSH_PORT}" ] && [ "${PI_SSH_PORT}" != "22" ]; then
   SCP_OPTS="-P ${PI_SSH_PORT}"
   SSH_OPTS="-p ${PI_SSH_PORT}"
 fi
+
+update_ssh_opts() {
+  SSH_BASE_OPTS="${SSH_OPTS} ${SSH_ID_OPTS}"
+  SCP_BASE_OPTS="${SCP_OPTS} ${SSH_ID_OPTS}"
+}
+
+update_ssh_opts
 
 # Directory of this script (canonical shared-config scripts dir)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -77,9 +87,9 @@ ensure_ssh_mux() {
   mkdir -p "${SSH_MUX_DIR}" && chmod 700 "${SSH_MUX_DIR}" || true
   cleanup_ssh_mux
   # Create or reuse a master connection to avoid repeated password prompts
-  if ! ssh ${MUX_OPTS} -o BatchMode=no -o ConnectTimeout=10 ${SSH_OPTS} "${PI_USER}@${PI_HOST}" -MNf >/dev/null 2>&1; then
+  if ! ssh ${MUX_OPTS} -o BatchMode=no -o ConnectTimeout=10 ${SSH_BASE_OPTS} "${PI_USER}@${PI_HOST}" -MNf >/dev/null 2>&1; then
     rm -f "${SSH_MUX_PATH}" || true
-    ssh ${MUX_OPTS} -o BatchMode=no -o ConnectTimeout=10 ${SSH_OPTS} "${PI_USER}@${PI_HOST}" -MNf >/dev/null 2>&1 || true
+    ssh ${MUX_OPTS} -o BatchMode=no -o ConnectTimeout=10 ${SSH_BASE_OPTS} "${PI_USER}@${PI_HOST}" -MNf >/dev/null 2>&1 || true
   fi
 }
 
@@ -91,7 +101,7 @@ ensure_known_host() {
   local ssh_check=""
 
   ssh_check=$(ssh ${MUX_OPTS} -o BatchMode=yes -o StrictHostKeyChecking=yes \
-    -o ConnectTimeout=5 ${SSH_OPTS} "${PI_USER}@${PI_HOST}" true 2>&1) && return 0 || true
+    -o ConnectTimeout=5 ${SSH_BASE_OPTS} "${PI_USER}@${PI_HOST}" true 2>&1) && return 0 || true
 
   if echo "${ssh_check}" | grep -q "REMOTE HOST IDENTIFICATION HAS CHANGED"; then
     log "WARN" "Host key changed for ${PI_HOST}; removing old key"
@@ -108,7 +118,7 @@ ensure_known_host() {
 ensure_known_host
 
 # Quick SSH auth check
-if ! ssh ${MUX_OPTS} -o BatchMode=yes -o ConnectTimeout=5 ${SSH_OPTS} "${PI_USER}@${PI_HOST}" true 2>/dev/null; then
+if ! ssh ${MUX_OPTS} -o BatchMode=yes -o ConnectTimeout=5 ${SSH_BASE_OPTS} "${PI_USER}@${PI_HOST}" true 2>/dev/null; then
   log "WARN" "SSH key auth failed; ensure your public key is installed on ${PI_HOST} for ${PI_USER}"
 fi
 
@@ -133,6 +143,9 @@ install_pi_keypair_on_pi() {
   ssh ${MUX_OPTS} ${SSH_OPTS} "${REMOTE_TARGET}" "mkdir -p '/home/${PI_USER}/.ssh' && chmod 700 '/home/${PI_USER}/.ssh'" || true
   scp ${MUX_OPTS} -q -P "${PI_SSH_PORT}" "${PI_KEY_PATH}" "${REMOTE_TARGET}:/home/${PI_USER}/.ssh/id_ed25519" || true
   scp ${MUX_OPTS} -q -P "${PI_SSH_PORT}" "${PI_KEY_PATH}.pub" "${REMOTE_TARGET}:/home/${PI_USER}/.ssh/id_ed25519.pub" || true
+  SSH_ID_OPTS="-i ${PI_KEY_PATH}"
+  update_ssh_opts
+  ensure_ssh_mux
 }
 
 # Commit & push changes (idempotent)
@@ -153,10 +166,10 @@ fi
 
 REMOTE_TARGET="${PI_USER}@${PI_HOST}"
 
-log "INFO" "Ensuring remote directory ${REPO_DIR} exists on ${REMOTE_TARGET}"
-ssh ${MUX_OPTS} ${SSH_OPTS} "${REMOTE_TARGET}" "mkdir -p '${REPO_DIR}'" || true
-
 install_pi_keypair_on_pi
+
+log "INFO" "Ensuring remote directory ${REPO_DIR} exists on ${REMOTE_TARGET}"
+ssh ${MUX_OPTS} ${SSH_BASE_OPTS} "${REMOTE_TARGET}" "mkdir -p '${REPO_DIR}'" || true
 
 if [ ! -f "${LOCAL_INSTALLER}" ]; then
   log "ERROR" "Installer file not found: ${LOCAL_INSTALLER}"
@@ -164,7 +177,7 @@ if [ ! -f "${LOCAL_INSTALLER}" ]; then
 fi
 
 log "INFO" "Copying ${LOCAL_INSTALLER} to ${REMOTE_TARGET}:${REPO_DIR}"
-scp ${MUX_OPTS} ${SCP_OPTS} -q "${LOCAL_INSTALLER}" "${REMOTE_TARGET}:${REPO_DIR}/" || { log "ERROR" "Failed to copy installer to remote"; exit 1; }
+scp ${MUX_OPTS} ${SCP_BASE_OPTS} -q "${LOCAL_INSTALLER}" "${REMOTE_TARGET}:${REPO_DIR}/" || { log "ERROR" "Failed to copy installer to remote"; exit 1; }
 
 REMOTE_INSTALLER=$(basename "${LOCAL_INSTALLER}")
 
@@ -172,6 +185,6 @@ log "INFO" "Running remote installer on ${REMOTE_TARGET}"
 ORIGIN_URL_ESCAPED=${ORIGIN_URL//\'/\'\\\'\'}
 SSH_TTY_OPT=""
 if [ -t 0 ]; then SSH_TTY_OPT="-t"; fi
-ssh ${MUX_OPTS} ${SSH_OPTS} ${SSH_TTY_OPT} "${REMOTE_TARGET}" "REPO_URL='${ORIGIN_URL_ESCAPED}' BRANCH='${BRANCH}' SETUP_NONINTERACTIVE='${SETUP_NONINTERACTIVE}' bash -l -c 'cd \"${REPO_DIR}\" && chmod +x \"${REMOTE_INSTALLER}\" && ./\"${REMOTE_INSTALLER}\"'" || { log "ERROR" "Remote deployment failed"; exit 1; }
+ssh ${MUX_OPTS} ${SSH_BASE_OPTS} ${SSH_TTY_OPT} "${REMOTE_TARGET}" "REPO_URL='${ORIGIN_URL_ESCAPED}' BRANCH='${BRANCH}' SETUP_NONINTERACTIVE='${SETUP_NONINTERACTIVE}' bash -l -c 'cd \"${REPO_DIR}\" && chmod +x \"${REMOTE_INSTALLER}\" && ./\"${REMOTE_INSTALLER}\"'" || { log "ERROR" "Remote deployment failed"; exit 1; }
 
 log "INFO" "Deploy finished. Review remote output for backup path and results."
